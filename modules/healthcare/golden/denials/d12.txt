@@ -1,0 +1,9 @@
+SYNTHETIC TEST DATA - NOT A REAL PATIENT OR CLAIM
+Payer: Synthetic Health Plan
+Claim #: SYN-1012
+Date of service: 2026-09-20
+Date of denial: 2026-10-20
+Service: CPT 72148 - MRI lumbar spine without contrast
+Reason code: CO-999
+Reason: Unlisted reason.
+You may appeal within 180 days of this notice.

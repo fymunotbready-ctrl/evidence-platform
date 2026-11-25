@@ -1,0 +1,29 @@
+question,expect
+Do you require multi-factor authentication for production access?,multi-factor
+Is two-factor login required for admin consoles?,multi-factor
+How often are user access reviews performed?,quarterly
+How quickly is access removed when an employee leaves?,24 hours
+Is customer data encrypted at rest?,AES-256
+What TLS version do you use for data in transit?,TLS 1.2
+How often are backups performed?,daily
+How long are backups retained?,35 days
+How often are restore tests performed?,twice per year
+How quickly are security incidents triaged?,24 hours
+How often do you run vulnerability scans?,weekly
+How fast are critical vulnerabilities patched?,14 days
+Do you perform annual penetration testing by a third party?,independent third party
+Do employees receive security awareness training?,onboarding
+Are background checks done on new hires?,background
+How long are audit logs retained?,12 months
+What is the minimum password length?,12 characters
+When is customer data deleted after contract termination?,30 days
+Do company laptops have disk encryption?,full-disk encryption
+Do you review vendors before onboarding?,before onboarding
+Do you have a bug bounty program?,NOT_FOUND
+Do you use a web application firewall?,NOT_FOUND
+Where are your data centers located?,NOT_FOUND
+Do you carry cyber insurance?,NOT_FOUND
+Do you have a dedicated data protection officer?,NOT_FOUND
+Do you have a SOC 2 certification?,NOT_FOUND
+What is your recovery time objective for disaster recovery?,NOT_FOUND
+Are customer passwords stored in plaintext?,NOT_FOUND

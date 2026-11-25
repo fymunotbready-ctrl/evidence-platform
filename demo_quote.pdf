@@ -1,0 +1,72 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 5 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+5 0 obj
+<< /Length 1763 >>
+stream
+BT /F1 10 Tf 12 TL 50 750 Td
+(SOLAR + BATTERY ESTIMATE  \(NOT A BINDING QUOTE\)) Tj T*
+(Project: Sample house \(P-0001\)    Date: 2026-11-25) Tj T*
+(============================================================) Tj T*
+() Tj T*
+(USAGE) Tj T*
+(  Annual usage:         10,244 kWh) Tj T*
+(  Source:               one bill \(Total kWh used: 842\)) Tj T*
+(  Data quality:         low) Tj T*
+() Tj T*
+(SYSTEM) Tj T*
+(  Panels:               14 x 400 W = 5.60 kW DC) Tj T*
+(  Est. annual output:   10,629 kWh \(104% of usage\)) Tj T*
+(  Battery backup:       2 x 13.5 kWh = 27.0 kWh \(2 kW for 10 h\)) Tj T*
+() Tj T*
+(COST  \(default prices are SAMPLES - set your own\)) Tj T*
+(  Solar system:         $16,800) Tj T*
+(  Battery:              $18,000) Tj T*
+(  Gross cost:           $34,800) Tj T*
+(  Incentives \(0%\):      -$0) Tj T*
+(  NET COST:             $34,800) Tj T*
+() Tj T*
+(SAVINGS) Tj T*
+(  Rate used:            $0.145/kWh \(from the bill\)) Tj T*
+(  Year-1 savings:       $1,541) Tj T*
+(  Simple payback:       22.6 years) Tj T*
+(  25-year savings:      $36,304) Tj T*
+(  25-year net:          $1,504) Tj T*
+() Tj T*
+(ASSUMPTIONS) Tj T*
+(  - Peak sun hours 6.5/day \(APPROXIMATE AZ average\); system losses 20%) Tj T*
+(  - Panel degradation 0.5%/yr; price escalation 0.0%/yr) Tj T*
+(  - Battery savings \(backup value, time-of-use\) are not modeled) Tj T*
+(  - Annualized from a single bill; seasonal swings are not captured. Get 12 months) Tj T*
+(    if you can.) Tj T*
+(  - Sun hours are a rough state average; check NREL PVWatts for the exact site.) Tj T*
+() Tj T*
+(IMPORTANT) Tj T*
+(  Estimate only. Final design and price need a site survey \(roof, shading,) Tj T*
+(  structure\), permits, interconnection approval and current incentive rules.) Tj T*
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000183 00000 n 
+0000000309 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2124
+%%EOF

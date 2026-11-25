@@ -1,0 +1,5 @@
+SYNTHETIC SAMPLE BILL - NOT A REAL CUSTOMER
+Billing period: 2026-09-01 to 2026-09-30 (30 days)
+Total kWh used: 842
+Rate: $0.1450 per kWh
+Amount due: $122.09

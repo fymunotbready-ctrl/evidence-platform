@@ -1,0 +1,22 @@
+DRAFT - must be reviewed by the provider's billing/clinical staff before sending. Not medical or legal advice.
+
+RE: Appeal of claim SYN-1001 - denial dated 2026-10-20
+
+To the Appeals Department, Synthetic Health Plan:
+
+We are appealing the denial of 72148 MRI lumbar spine without contrast (claim SYN-1001), denied on 2026-10-20 under reason code CO-50 (service not deemed medically necessary by the payer).
+
+Policy basis - Synthetic Health Plan policy (imaging_policy.md, Advanced Imaging): "MRI of the lumbar spine is considered medically necessary when the member has completed at least 6 weeks of conservative therapy without improvement, or presents with red-flag symptoms such as progressive neurological deficit or suspected cauda equina syndrome."
+
+Supporting facts:
+[TO ADD: supporting facts from the provider - none were supplied]
+
+We ask that you reconsider and overturn this denial and process the claim for payment.
+
+Enclosures:
+- Copy of the denial letter
+- Medical records for the date of service
+- Letter of medical necessity from the treating clinician
+
+Sincerely,
+[PROVIDER NAME / CONTACT]

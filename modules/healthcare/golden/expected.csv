@@ -1,0 +1,13 @@
+file,facts,code,category,recommendation,strength,policy_source
+d01.txt,,CO-50,medical_necessity,appeal,medium,imaging_policy.md
+d02.txt,f_clinical.txt,CO-50,medical_necessity,appeal,strong,imaging_policy.md
+d03.txt,,CO-197,authorization,appeal,weak,imaging_policy.md
+d04.txt,f_urgent.txt,CO-197,authorization,appeal,medium,imaging_policy.md
+d05.txt,f_auth.txt,CO-197,authorization,appeal,strong,imaging_policy.md
+d06.txt,,CO-29,timely_filing,appeal,weak,claims_policy.md
+d07.txt,f_proof.txt,CO-29,timely_filing,appeal,strong,claims_policy.md
+d08.txt,,CO-16,missing_info,resubmit_corrected_claim,n/a,claims_policy.md
+d09.txt,,CO-18,duplicate,verify_original_claim,n/a,claims_policy.md
+d10.txt,f_clinical.txt,CO-50,medical_necessity,appeal,weak,
+d11.txt,f_clinical.txt,CO-50,medical_necessity,appeal,weak,imaging_policy.md
+d12.txt,,CO-999,unknown,manual_review,weak,

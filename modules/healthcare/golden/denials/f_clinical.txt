@@ -1,0 +1,2 @@
+# facts from the treating clinician (synthetic)
+clinical: Patient completed 8 weeks of physical therapy without improvement.
