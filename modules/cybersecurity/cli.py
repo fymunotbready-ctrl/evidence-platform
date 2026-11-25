@@ -14,6 +14,34 @@ def _engine(tenant):
     return Engine(HOME, tenant)
 
 
+from .memory import lookup, learn
+
+AUTO_MATCH = 0.85
+
+
+def clean_answer(text):
+    """Drop markdown heading lines so answers read like sentences."""
+    if not isinstance(text, str):
+        return text
+    lines = [l.strip() for l in text.splitlines() if l.strip() and not l.lstrip().startswith("#")]
+    return " ".join(lines) or text.strip()
+
+
+def _answer_all(eng, tenant, qs):
+    results = []
+    for q in qs:
+        hit = lookup(tenant, q, threshold=AUTO_MATCH)
+        if hit:
+            results.append({"question": q, "answer": hit["answer"], "confidence": hit["match"],
+                            "citations": [{"chunk_id": "memory:" + (hit["source"] or "approved")}],
+                            "needs_review": False})
+        else:
+            r = eng.ask(q)
+            r["answer"] = clean_answer(r["answer"])
+            results.append(r)
+    return results
+
+
 def cmd_run(a):
     eng = _engine(a.tenant)
     files = [os.path.join(a.policies, n) for n in sorted(os.listdir(a.policies))
@@ -27,7 +55,7 @@ def cmd_run(a):
     if not qs:
         print("No questions found in the CSV.")
         return 1
-    results = [eng.ask(q) for q in qs]
+    results = _answer_all(eng, a.tenant, qs)
     write_answers(a.out, results)
     review = sum(1 for r in results if r["needs_review"])
     print(f"\n{len(results) - review}/{len(results)} answered with citations, {review} need review.")
@@ -61,8 +89,9 @@ def cmd_decide(a, status):
 def cmd_finalize(a):
     items = _engine(a.tenant).queue.all()
     rows = finalize(a.out_csv, a.final_csv, items)
+    learned = learn(a.tenant, rows)
     pend = sum(1 for r in rows if r[3] == "PENDING REVIEW")
-    print(f"Saved {a.final_csv}. Still pending review: {pend}")
+    print(f"Saved {a.final_csv}. Still pending review: {pend}. Learned into memory: {learned}")
     return 0
 
 

@@ -77,5 +77,12 @@ class IngestFormatTests(unittest.TestCase):
             self.assertIn("pkg install poppler", str(cm.exception))
 
 
+def setUpModule():
+    """Keep tests from writing to the real data/memory folder."""
+    import tempfile
+    from modules.cybersecurity import memory
+    memory.ROOT = tempfile.mkdtemp()
+
+
 if __name__ == "__main__":
     unittest.main()
