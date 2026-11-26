@@ -115,6 +115,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _ip(self):
         ip = self.client_address[0]
+        print("ipdebug", repr(self.headers.get("X-Forwarded-For")), self.client_address[0], file=__import__("sys").stderr, flush=True)
         if os.environ.get("EP_TRUST_PROXY") == "1":
             last = self.headers.get("X-Forwarded-For", "").split(",")[-1].strip()
             if re.fullmatch(r"[0-9a-fA-F:.]{3,45}", last):
