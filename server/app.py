@@ -108,6 +108,9 @@ class Handler(BaseHTTPRequestHandler):
         t = self._tenant()
         if not t:
             return self._send(401, {"error": "Missing or invalid token"})
+        rv = re.fullmatch(r"/api/runs/([0-9a-f]{32})/review", self.path)
+        if rv:
+            return self._review_list(t, rv.group(1))
         m = re.fullmatch(r"/api/files/([0-9a-f]{32})/([A-Za-z0-9._-]+)", self.path)
         if m:
             p = tenant_dir(t, "runs", m.group(1), m.group(2))
@@ -125,6 +128,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(401, {"error": "Missing or invalid token"})
             if self.path == "/api/policies":
                 return self._upload_policies(t)
+            rv = re.fullmatch(r"/api/review/([0-9a-f]{8})", self.path)
+            if rv:
+                return self._review_decide(t, rv.group(1))
             if self.path == "/api/questionnaires":
                 return self._run(t)
             return self._send(404, {"error": "Not found"})
@@ -178,6 +184,60 @@ class Handler(BaseHTTPRequestHandler):
                 f.write(data)
         return self._send(200, {"saved": [n for n, _ in files]})
 
+    def _review_list(self, t, run_id):
+        p = tenant_dir(t, "runs", run_id, "results.json")
+        if not os.path.isfile(p):
+            return self._send(404, {"error": "Not found"})
+        with open(p) as f:
+            results = json.load(f)
+        state = {i["id"]: i for i in _engine(t).queue.all()}
+        out = []
+        for r in results:
+            rid = r.get("review_id")
+            if not r.get("needs_review") or not rid:
+                continue
+            q = state.get(rid, {})
+            out.append({"review_id": rid, "question": r.get("question"),
+                        "suggested_answer": r.get("answer"),
+                        "confidence": r.get("confidence"),
+                        "sources": [c.get("chunk_id") for c in r.get("citations", [])],
+                        "status": q.get("status", "pending"),
+                        "reviewer": q.get("reviewer"),
+                        "final_answer": q.get("final_answer")})
+        pending = sum(1 for i in out if i["status"] == "pending")
+        return self._send(200, {"run_id": run_id, "items": out, "pending": pending})
+
+    def _review_decide(self, t, item_id):
+        try:
+            body = json.loads(self._body() or b"{}")
+        except ValueError:
+            raise ValueError("Body must be JSON")
+        if not isinstance(body, dict):
+            raise ValueError("Body must be a JSON object")
+        status = {"approve": "approved", "reject": "rejected",
+                  "edit": "edited"}.get(body.get("decision"))
+        if not status:
+            raise ValueError("decision must be approve, reject or edit")
+        reviewer = str(body.get("reviewer", "")).strip()
+        if not reviewer or len(reviewer) > 60:
+            raise ValueError("reviewer name required (max 60 characters)")
+        text = None
+        if status == "edited":
+            text = body.get("text")
+            if not isinstance(text, str) or not text.strip() or len(text) > 5000:
+                raise ValueError("edit needs text (max 5000 characters)")
+            text = text.strip()
+        eng = _engine(t)
+        with LOCK:
+            try:
+                item = eng.queue.decide(item_id, status, reviewer, text)
+            except KeyError:
+                return self._send(404, {"error": "Not found"})
+            eng.audit.append(reviewer, "review_" + status, {"review_id": item_id})
+        return self._send(200, {"review_id": item_id, "status": item["status"],
+                                "reviewer": reviewer,
+                                "final_answer": item["final_answer"]})
+
     def _run(self, t):
         files = parse_multipart(self.headers.get("Content-Type", ""), self._body())
         if len(files) != 1:
@@ -205,6 +265,8 @@ class Handler(BaseHTTPRequestHandler):
                 eng.ingest(os.path.join(pol, p))
             results = _answer_all(eng, t, qs)
             write_answers(os.path.join(rd, "answers.xlsx"), results)
+        with open(os.path.join(rd, "results.json"), "w") as f:
+            json.dump(results, f, default=str)
         review = sum(1 for r in results if r["needs_review"])
         return self._send(200, {"run_id": run_id, "questions": len(results),
                                 "answered": len(results) - review, "needs_review": review,
