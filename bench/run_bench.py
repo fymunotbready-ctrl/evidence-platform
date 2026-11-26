@@ -1,5 +1,5 @@
 """Realistic benchmark. Run from repo root: python3 -m bench.run_bench"""
-import os, sys
+import os, sys, time
 from modules.cybersecurity.cli import _engine
 from bench.cases import CASES
 
@@ -7,7 +7,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def main():
-    eng = _engine("bench")
+    eng = _engine("bench-" + str(int(time.time()))[-6:])
     pol = os.path.join(HERE, "policies")
     for n in sorted(os.listdir(pol)):
         eng.ingest(os.path.join(pol, n))

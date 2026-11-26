@@ -82,3 +82,19 @@ class BM25:
                 scored.append((s, i))
         scored.sort(reverse=True)
         return [(s, self.chunks[i]) for s, i in scored[:k]]
+
+
+# --- Security questionnaire vocabulary (questions often use different words than policies) ---
+STOP.update({"support", "version", "quickly", "soon", "repeated", "long"})
+PHRASES.extend([
+    (r"single[- ]sign[- ]on", "sso"),
+    (r"identity provider|\bidp\b", "sso"),
+])
+WORDS.update({
+    "notified": "notify", "notification": "notify", "notifies": "notify",
+    "environment": "system", "environments": "system",
+    "removed": "revoke", "revoked": "revoke", "disabled": "revoke", "deprovisioned": "revoke",
+    "leaves": "offboard", "departing": "offboard", "termination": "offboard",
+    "terminated": "offboard", "offboarding": "offboard",
+    "supplier": "vendor", "suppliers": "vendor",
+})
