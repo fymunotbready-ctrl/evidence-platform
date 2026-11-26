@@ -1,6 +1,6 @@
 """Optional AI check: does this evidence sentence really answer the question?
 Off unless EP_LLM_URL is set. Sends only the question and one sentence."""
-import json, os, re, time, urllib.error, urllib.request
+import json, os, re, sys, time, urllib.error, urllib.request
 
 PROMPT = ("You check security questionnaire answers.\n"
           "Question: {q}\nEvidence sentence: {e}\n"
@@ -50,5 +50,6 @@ def verify(question, evidence, call=None):
         call = _http_call
     try:
         return parse(call(PROMPT.format(q=question, e=evidence)))
-    except Exception:
+    except Exception as e:
+        print('verify failed:', type(e).__name__, getattr(e, 'code', ''), file=sys.stderr, flush=True)
         return False
