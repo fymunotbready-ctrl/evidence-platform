@@ -115,11 +115,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def _ip(self):
         ip = self.client_address[0]
-        print("ipdebug", repr(self.headers.get("X-Forwarded-For")), self.client_address[0], file=__import__("sys").stderr, flush=True)
         if os.environ.get("EP_TRUST_PROXY") == "1":
-            last = self.headers.get("X-Forwarded-For", "").split(",")[-1].strip()
-            if re.fullmatch(r"[0-9a-fA-F:.]{3,45}", last):
-                return last
+            try:
+                hops = max(1, int(os.environ.get("EP_PROXY_HOPS", "2")))
+            except ValueError:
+                hops = 2
+            parts = [x.strip() for x in self.headers.get("X-Forwarded-For", "").split(",")]
+            if len(parts) >= hops:
+                cand = parts[-hops]
+                if re.fullmatch(r"[0-9a-fA-F:.]{3,45}", cand):
+                    return cand
         return ip
 
     def _log(self, code, size):

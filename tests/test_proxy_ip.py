@@ -47,10 +47,33 @@ class ProxyIpTests(unittest.TestCase):
 
     def test_header_used_when_trusted(self):
         os.environ["EP_TRUST_PROXY"] = "1"
-        codes = [self.health("9.9.9.1") for _ in range(3)]
+        codes = [self.health("9.9.9.1, 10.0.0.1") for _ in range(3)]
         self.assertEqual(codes, [200, 200, 429])
-        self.assertEqual(self.health("9.9.9.2"), 200)
+        self.assertEqual(self.health("9.9.9.2, 10.0.0.1"), 200)
 
+    def test_spoofed_leftmost_cannot_escape_bucket(self):
+        os.environ["EP_TRUST_PROXY"] = "1"
+        codes = [self.health("1.1.1.%d, 9.9.9.1, 10.0.0.1" % i) for i in range(3)]
+        self.assertEqual(codes, [200, 200, 429])
+
+    def test_single_entry_falls_back_to_peer(self):
+        os.environ["EP_TRUST_PROXY"] = "1"
+        codes = [self.health("9.9.9.%d" % i) for i in range(3)]
+        self.assertEqual(codes, [200, 200, 429])
+
+    def test_garbage_falls_back_to_peer(self):
+        os.environ["EP_TRUST_PROXY"] = "1"
+        codes = [self.health("not-an-ip, also bad") for _ in range(3)]
+        self.assertEqual(codes, [200, 200, 429])
+        self.assertEqual(self.health("9.9.9.5, 10.0.0.1"), 200)
+
+    def test_hops_env_one_uses_last_entry(self):
+        os.environ["EP_TRUST_PROXY"] = "1"
+        os.environ["EP_PROXY_HOPS"] = "1"
+        self.addCleanup(os.environ.pop, "EP_PROXY_HOPS", None)
+        codes = [self.health("9.9.9.%d, 10.0.0.1" % i) for i in range(3)]
+        self.assertEqual(codes, [200, 200, 429])
+        self.assertEqual(self.health("9.9.9.9, 10.0.0.2"), 200)
 
 if __name__ == "__main__":
     unittest.main()
