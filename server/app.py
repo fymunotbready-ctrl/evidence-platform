@@ -1,0 +1,231 @@
+"""Evidence Engine web API (standard library only).
+Run: EP_ADMIN_TOKEN=... python3 -m server.app --port 8080"""
+import hashlib, json, os, re, secrets, shutil, threading, uuid
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+from core.ingest import SUPPORTED
+from modules.cybersecurity import memory
+from modules.cybersecurity.cli import _engine, _answer_all
+from modules.cybersecurity.questionnaire import read_questions, write_answers
+
+TENANT_RE = re.compile(r"^[a-z0-9-]{1,40}$")
+MAX_BODY = 20 * 1024 * 1024
+Q_EXT = (".xlsx", ".docx", ".csv")
+LOCK = threading.Lock()
+
+
+def root():
+    return os.environ.get("EP_DATA", os.path.join("data", "server"))
+
+
+def _tokens_path():
+    return os.path.join(root(), "tokens.json")
+
+
+def _load_tokens():
+    try:
+        with open(_tokens_path(), encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+
+def _save_tokens(t):
+    os.makedirs(root(), exist_ok=True)
+    tmp = _tokens_path() + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(t, f)
+    os.replace(tmp, _tokens_path())
+
+
+def _hash(token):
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def tenant_dir(tenant, *parts):
+    return os.path.join(root(), "tenants", tenant, *parts)
+
+
+def safe_name(name):
+    base = os.path.basename((name or "").replace("\\", "/"))
+    base = re.sub(r"[^A-Za-z0-9._-]", "_", base).lstrip(".")
+    return base[:100]
+
+
+def parse_multipart(ctype, body):
+    """Binary-safe multipart/form-data parser. Returns [(safe_filename, bytes)]."""
+    m = re.search(r'boundary="?([^";]+)"?', ctype or "")
+    if not m or not (ctype or "").startswith("multipart/form-data"):
+        raise ValueError("Expected a multipart/form-data upload")
+    delim = b"--" + m.group(1).encode()
+    out = []
+    for part in body.split(delim)[1:]:
+        if part.startswith(b"--"):
+            break
+        if part.startswith(b"\r\n"):
+            part = part[2:]
+        head, sep, data = part.partition(b"\r\n\r\n")
+        if not sep:
+            continue
+        if data.endswith(b"\r\n"):
+            data = data[:-2]
+        fm = re.search(rb'filename="([^"]*)"', head)
+        if fm:
+            out.append((safe_name(fm.group(1).decode("utf-8", "replace")), data))
+    return out
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "EvidenceEngine/0.1"
+
+    def log_message(self, fmt, *args):
+        pass
+
+    def _send(self, code, obj=None, raw=None, ctype="application/json"):
+        data = raw if raw is not None else json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _body(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        if n > MAX_BODY:
+            raise ValueError("Upload too large (max 20 MB)")
+        return self.rfile.read(n)
+
+    def _tenant(self):
+        auth = self.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return None
+        return _load_tokens().get(_hash(auth[7:].strip()))
+
+    def do_GET(self):
+        if self.path == "/api/health":
+            return self._send(200, {"ok": True})
+        t = self._tenant()
+        if not t:
+            return self._send(401, {"error": "Missing or invalid token"})
+        m = re.fullmatch(r"/api/files/([0-9a-f]{32})/([A-Za-z0-9._-]+)", self.path)
+        if m:
+            p = tenant_dir(t, "runs", m.group(1), m.group(2))
+            if os.path.isfile(p):
+                with open(p, "rb") as f:
+                    return self._send(200, raw=f.read(), ctype="application/octet-stream")
+        return self._send(404, {"error": "Not found"})
+
+    def do_POST(self):
+        try:
+            if self.path == "/api/workspaces":
+                return self._create_workspace()
+            t = self._tenant()
+            if not t:
+                return self._send(401, {"error": "Missing or invalid token"})
+            if self.path == "/api/policies":
+                return self._upload_policies(t)
+            if self.path == "/api/questionnaires":
+                return self._run(t)
+            return self._send(404, {"error": "Not found"})
+        except ValueError as e:
+            return self._send(400, {"error": str(e)})
+        except Exception:
+            return self._send(500, {"error": "Internal error"})
+
+    def do_DELETE(self):
+        t = self._tenant()
+        if not t:
+            return self._send(401, {"error": "Missing or invalid token"})
+        if self.path != "/api/workspace":
+            return self._send(404, {"error": "Not found"})
+        _save_tokens({h: n for h, n in _load_tokens().items() if n != t})
+        shutil.rmtree(tenant_dir(t), ignore_errors=True)
+        try:
+            os.remove(memory._path(t))
+        except FileNotFoundError:
+            pass
+        return self._send(200, {"deleted": t})
+
+    def _create_workspace(self):
+        admin = os.environ.get("EP_ADMIN_TOKEN", "")
+        given = self.headers.get("X-Admin-Token", "")
+        if not admin or not secrets.compare_digest(admin, given):
+            return self._send(403, {"error": "Admin token required"})
+        name = json.loads(self._body() or b"{}").get("name", "")
+        if not TENANT_RE.match(name):
+            raise ValueError("Invalid workspace name (a-z, 0-9, hyphen; max 40)")
+        tokens = _load_tokens()
+        if name in tokens.values():
+            return self._send(409, {"error": "Workspace exists"})
+        token = secrets.token_urlsafe(32)
+        tokens[_hash(token)] = name
+        _save_tokens(tokens)
+        os.makedirs(tenant_dir(name, "policies"), exist_ok=True)
+        return self._send(201, {"workspace": name, "token": token})
+
+    def _upload_policies(self, t):
+        files = parse_multipart(self.headers.get("Content-Type", ""), self._body())
+        if not files:
+            raise ValueError("No files uploaded")
+        d = tenant_dir(t, "policies")
+        os.makedirs(d, exist_ok=True)
+        for name, _ in files:
+            if not name or os.path.splitext(name)[1].lower() not in SUPPORTED:
+                raise ValueError(f"Unsupported policy file: {name}")
+        for name, data in files:
+            with open(os.path.join(d, name), "wb") as f:
+                f.write(data)
+        return self._send(200, {"saved": [n for n, _ in files]})
+
+    def _run(self, t):
+        files = parse_multipart(self.headers.get("Content-Type", ""), self._body())
+        if len(files) != 1:
+            raise ValueError("Upload exactly one questionnaire file")
+        name, data = files[0]
+        ext = os.path.splitext(name)[1].lower()
+        if ext not in Q_EXT:
+            raise ValueError("Questionnaire must be .xlsx, .docx or .csv")
+        pol = tenant_dir(t, "policies")
+        policies = sorted(os.listdir(pol)) if os.path.isdir(pol) else []
+        if not policies:
+            raise ValueError("Upload policy documents first")
+        run_id = uuid.uuid4().hex
+        rd = tenant_dir(t, "runs", run_id)
+        os.makedirs(rd)
+        qpath = os.path.join(rd, "input" + ext)
+        with open(qpath, "wb") as f:
+            f.write(data)
+        with LOCK:
+            qs = read_questions(qpath)
+            if not qs:
+                raise ValueError("No questions found in the file")
+            eng = _engine(t)
+            for p in policies:
+                eng.ingest(os.path.join(pol, p))
+            results = _answer_all(eng, t, qs)
+            write_answers(os.path.join(rd, "answers.xlsx"), results)
+        review = sum(1 for r in results if r["needs_review"])
+        return self._send(200, {"run_id": run_id, "questions": len(results),
+                                "answered": len(results) - review, "needs_review": review,
+                                "download": f"/api/files/{run_id}/answers.xlsx"})
+
+
+def serve(port=8080, host="127.0.0.1"):
+    return ThreadingHTTPServer((host, port), Handler)
+
+
+def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--port", type=int, default=8080)
+    ap.add_argument("--host", default="127.0.0.1")
+    a = ap.parse_args()
+    if not os.environ.get("EP_ADMIN_TOKEN"):
+        raise SystemExit("Set EP_ADMIN_TOKEN first")
+    print(f"Evidence Engine API on http://{a.host}:{a.port}")
+    serve(a.port, a.host).serve_forever()
+
+
+if __name__ == "__main__":
+    main()
