@@ -11,7 +11,7 @@ def main():
     pol = os.path.join(HERE, "policies")
     for n in sorted(os.listdir(pol)):
         eng.ingest(os.path.join(pol, n))
-    correct = unsafe = miss = 0
+    correct = draft = miss = unsafe = 0
     problems = []
     for q, expect in CASES:
         r = eng.ask(q)
@@ -23,16 +23,21 @@ def main():
             else:
                 unsafe += 1
                 problems.append(("UNSAFE", q, ans))
-        elif held:
-            miss += 1
-            problems.append(("MISS", q, ans))
-        elif all(k in ans.lower() for k in expect):
+            continue
+        hit = all(k in ans.lower() for k in expect)
+        if not held and hit:
             correct += 1
-        else:
+        elif not held:
             unsafe += 1
             problems.append(("UNSAFE", q, ans))
+        elif hit:
+            draft += 1
+        else:
+            miss += 1
+            problems.append(("MISS", q, ans))
     total = len(CASES)
-    print(f"BENCH {correct}/{total} correct = {100 * correct / total:.0f}% | unsafe: {unsafe} | safe misses: {miss}")
+    print(f"AUTO-CORRECT {correct}/{total} | GOOD DRAFTS {draft} | MISSES {miss} | UNSAFE {unsafe}")
+    print(f"USEFUL = {100 * (correct + draft) / total:.0f}%")
     for kind, q, a in problems:
         print(f"{kind}: {q}\n   -> {a[:70]}")
     return 0 if unsafe == 0 else 1
