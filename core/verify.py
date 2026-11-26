@@ -12,6 +12,21 @@ def configured():
     return bool(os.environ.get("EP_LLM_URL"))
 
 
+STATS = {}
+
+
+def _bump(k):
+    STATS[k] = STATS.get(k, 0) + 1
+
+
+def reset_stats():
+    STATS.clear()
+
+
+def snapshot():
+    return dict(STATS)
+
+
 def _http_call(prompt):
     payload = {"model": os.environ.get("EP_LLM_MODEL", ""),
                "messages": [{"role": "user", "content": prompt}],
@@ -49,7 +64,18 @@ def verify(question, evidence, call=None):
             return True
         call = _http_call
     try:
-        return parse(call(PROMPT.format(q=question, e=evidence)))
+        out = call(PROMPT.format(q=question, e=evidence))
+        ok = parse(out)
+        if ok:
+            _bump('yes')
+        elif not str(out).strip():
+            _bump('empty_reply')
+        elif not re.findall(r'\b(YES|NO)\b', str(out).upper()):
+            _bump('no_verdict')
+        else:
+            _bump('model_said_no')
+        return ok
     except Exception as e:
+        _bump(type(e).__name__ + ':' + str(getattr(e, 'code', '')))
         print('verify failed:', type(e).__name__, getattr(e, 'code', ''), file=sys.stderr, flush=True)
         return False

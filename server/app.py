@@ -7,6 +7,7 @@ from core.ingest import SUPPORTED
 from modules.cybersecurity import memory
 from modules.cybersecurity import cli as _cli
 from modules.cybersecurity.cli import _engine, _answer_all
+from core import verify as _verify_mod
 from modules.cybersecurity.questionnaire import read_questions, write_answers, finalize as finalize_file
 
 TENANT_RE = re.compile(r"^[a-z0-9-]{1,40}$")
@@ -368,6 +369,7 @@ class Handler(BaseHTTPRequestHandler):
         with open(qpath, "wb") as f:
             f.write(data)
         with LOCK:
+            _verify_mod.reset_stats()
             qs = read_questions(qpath)
             if not qs:
                 raise ValueError("No questions found in the file")
@@ -380,7 +382,7 @@ class Handler(BaseHTTPRequestHandler):
             json.dump(results, f, default=str)
         review = sum(1 for r in results if r["needs_review"])
         return self._send(200, {"run_id": run_id, "questions": len(results),
-                                "answered": len(results) - review, "needs_review": review,
+                                "answered": len(results) - review, "needs_review": review, "verify": _verify_mod.snapshot(),
                                 "download": f"/api/files/{run_id}/answers.xlsx"})
 
 
