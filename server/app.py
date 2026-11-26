@@ -113,9 +113,17 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _ip(self):
+        ip = self.client_address[0]
+        if os.environ.get("EP_TRUST_PROXY") == "1":
+            last = self.headers.get("X-Forwarded-For", "").split(",")[-1].strip()
+            if re.fullmatch(r"[0-9a-fA-F:.]{3,45}", last):
+                return last
+        return ip
+
     def _log(self, code, size):
         try:
-            ip = self.client_address[0]
+            ip = self._ip()
             path = re.sub(r"[^\x21-\x7e]", "?", self.path.split("?")[0])[:200]
             t = self._tenant() or "-"
             line = "%s %s %s %s %s %s %s\n" % (time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -131,7 +139,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _limited(self):
         srv = self.server
-        ip = self.client_address[0]
+        ip = self._ip()
         ok = _count(srv, "fail:" + ip) < int(os.environ.get("EP_RATE_FAIL", "20"))
         if ok:
             ok = _allow(srv, "ip:" + ip, int(os.environ.get("EP_RATE_IP", "300")))
@@ -380,8 +388,8 @@ def serve(port=8080, host="127.0.0.1"):
 def main():
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", type=int, default=8080)
-    ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8080")))
+    ap.add_argument("--host", default="0.0.0.0" if os.environ.get("PORT") else "127.0.0.1")
     a = ap.parse_args()
     if not os.environ.get("EP_ADMIN_TOKEN"):
         raise SystemExit("Set EP_ADMIN_TOKEN first")
