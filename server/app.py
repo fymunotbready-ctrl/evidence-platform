@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from core.ingest import SUPPORTED
 from modules.cybersecurity import memory
+from modules.cybersecurity import cli as _cli
 from modules.cybersecurity.cli import _engine, _answer_all
 from modules.cybersecurity.questionnaire import read_questions, write_answers, finalize as finalize_file
 
@@ -149,7 +150,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/api/workspace":
             return self._send(404, {"error": "Not found"})
         _save_tokens({h: n for h, n in _load_tokens().items() if n != t})
-        shutil.rmtree(tenant_dir(t), ignore_errors=True)
+        with LOCK:
+            shutil.rmtree(tenant_dir(t), ignore_errors=True)
+            shutil.rmtree(os.path.join(_cli.HOME, t), ignore_errors=True)
         try:
             os.remove(memory._path(t))
         except FileNotFoundError:

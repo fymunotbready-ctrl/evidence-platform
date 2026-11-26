@@ -21,6 +21,10 @@ class ServerTests(unittest.TestCase):
         os.environ["EP_ADMIN_TOKEN"] = "admin-secret"
         os.environ.pop("EP_LLM_URL", None)
         memory.ROOT = os.path.join(cls.tmp, "memory")
+        from modules.cybersecurity import cli as _c
+        cls.old_home = _c.HOME
+        _c.HOME = os.path.join(cls.tmp, "engine")
+        os.makedirs(_c.HOME, exist_ok=True)
         from server import app
         cls.httpd = app.serve(0)
         cls.base = f"http://127.0.0.1:{cls.httpd.server_address[1]}"
@@ -28,6 +32,8 @@ class ServerTests(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        from modules.cybersecurity import cli as _c
+        _c.HOME = cls.old_home
         cls.httpd.shutdown()
         cls.httpd.server_close()
         os.environ.pop("EP_DATA", None)
