@@ -2,7 +2,7 @@
 import re
 
 YES_NO = {"do", "does", "did", "is", "are", "was", "were", "have", "has", "can", "will", "should", "must"}
-NEG = re.compile(r"\b(not|no|never|none|cannot|can't|don't|doesn't|isn't|aren't|won't|haven't|hasn't)\b", re.I)
+NEG = re.compile(r"\b(not|no|never|none|cannot|can't|don't|doesn't|isn't|aren't|won't|haven't|hasn't|prohibited|forbidden|disallowed|banned)\b", re.I)
 
 
 def strip_headings(text):
