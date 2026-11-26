@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from core.ingest import SUPPORTED
 from modules.cybersecurity import memory
 from modules.cybersecurity.cli import _engine, _answer_all
-from modules.cybersecurity.questionnaire import read_questions, write_answers
+from modules.cybersecurity.questionnaire import read_questions, write_answers, finalize as finalize_file
 
 TENANT_RE = re.compile(r"^[a-z0-9-]{1,40}$")
 MAX_BODY = 20 * 1024 * 1024
@@ -128,6 +128,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(401, {"error": "Missing or invalid token"})
             if self.path == "/api/policies":
                 return self._upload_policies(t)
+            fz = re.fullmatch(r"/api/runs/([0-9a-f]{32})/finalize", self.path)
+            if fz:
+                return self._finalize(t, fz.group(1))
             rv = re.fullmatch(r"/api/review/([0-9a-f]{8})", self.path)
             if rv:
                 return self._review_decide(t, rv.group(1))
@@ -237,6 +240,29 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(200, {"review_id": item_id, "status": item["status"],
                                 "reviewer": reviewer,
                                 "final_answer": item["final_answer"]})
+
+    def _finalize(self, t, run_id):
+        rd = tenant_dir(t, "runs", run_id)
+        rp = os.path.join(rd, "results.json")
+        if not os.path.isfile(rp):
+            return self._send(404, {"error": "Not found"})
+        with LOCK:
+            with open(rp) as f:
+                results = json.load(f)
+            eng = _engine(t)
+            ids = {r.get("review_id") for r in results if r.get("review_id")}
+            items = [i for i in eng.queue.all() if i["id"] in ids]
+            pending = sum(1 for i in items if i["status"] == "pending")
+            if pending:
+                return self._send(409, {"error": "Review all flagged items first",
+                                        "pending": pending})
+            rows = finalize_file(os.path.join(rd, "answers.xlsx"),
+                                 os.path.join(rd, "final.xlsx"), items)
+            learned = memory.learn(t, rows)
+            eng.audit.append("system", "finalize", {"run_id": run_id, "learned": learned})
+        return self._send(200, {"run_id": run_id, "questions": len(rows),
+                                "learned": learned,
+                                "download": f"/api/files/{run_id}/final.xlsx"})
 
     def _run(self, t):
         files = parse_multipart(self.headers.get("Content-Type", ""), self._body())
