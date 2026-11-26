@@ -1,6 +1,7 @@
 from .ingest import SENT
 from .retrieve import tokenize
 from .compose import compose
+from .verify import verify
 
 NOT_FOUND = "Not found in the provided documents."
 
@@ -33,6 +34,8 @@ def answer(question, index, min_cov=0.5, review_below=0.75, llm=None):
     text, conf = sent, round(min(1.0, cov), 2)
     text, needs_human = compose(question, text)
     if needs_human:
+        conf = min(conf, 0.5)
+    elif conf >= review_below and not verify(question, sent):
         conf = min(conf, 0.5)
     if llm is not None:
         out = llm(question, ch["text"])
